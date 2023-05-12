@@ -1,18 +1,18 @@
 import datetime
-
 import requests
 import json
 import time
 import os.path
 import re
+from telegram.ext import Updater, CommandHandler
 from web3 import Web3
 
 
 # Update the following variables with your own Etherscan and BscScan API keys and Telegram bot token
-ETHERSCAN_API_KEY = '2R47Y5FQ1XH9GGN4ZXP62A5KGF1UWZT7EV'
-BSCSCAN_API_KEY = '1HREGBTP8UI4JN6213385SXKCBR5JPM2AQ'
-TELEGRAM_BOT_TOKEN = '5343231561:AAGB0nKpggD61U7t83sNgW_a0baKCQk2Deo'
-TELEGRAM_CHAT_ID = '556907227'
+ETHERSCAN_API_KEY = 'CKNNT8S3WW8G5IZ3KK1VEHVSAPMRHMJQ4B'
+BSCSCAN_API_KEY = 'SZSR36ZQ18HFBBJVW43DCZF22XKUW5SU2N'
+TELEGRAM_BOT_TOKEN = '5870213133:AAHQhk78zspNm-vEoS3eklP77gG97mior8s'
+TELEGRAM_CHAT_ID = '1742440393'
 
 
 # Define some helper functions
@@ -106,15 +106,14 @@ def monitor_wallets():
                             message += f'  - <b>Name of the wallet:</b> {name_of_wallet}\n'
                             message += f'  - <b>Time:</b> {date_time_str}\n'
                             try:
-                                contract_address=tx['from']
-                                r = requests.get((f'https://api.etherscan.io/api?module=contract&action=getsourcecode&address={contract_address}&apikey=2R47Y5FQ1XH9GGN4ZXP62A5KGF1UWZT7EV'))
-                                # Получение имени контракта
+                                contract_address = tx['from']
+                                r = requests.get((f'https://api.etherscan.io/api?module=contract&action=getsourcecode&address={contract_address}&apikey={ETHERSCAN_API_KEY}'))
                                 contract_name = r.json()['result'][0]['ContractName']
                                 message += f'  - from: <b>{contract_name}</b>\n'
                                 if contract_name == '':
                                     pass
                             except:
-                                print('ni')
+                                pass
 
                             send_telegram_notification(message, value, usd_value, tx['hash'], blockchain)
 
@@ -166,7 +165,7 @@ def add_wallet(wallet_address, blockchain, name_of_wallet):
         f.write(f'{blockchain}:{wallet_address}:{name_of_wallet}\n')
 
 
-def remove_wallet(wallet_address, blockchain,name_of_wallet):
+def remove_wallet(wallet_address, blockchain, name_of_wallet):
     file_path = "watched_wallets.txt"
     temp_file_path = "temp.txt"
     with open(file_path, 'r') as f, open(temp_file_path, 'w') as temp_f:
@@ -215,7 +214,7 @@ def add(update, context):
     wallet_address = context.args[1]
     name_of_wallet = context.args[2]
     print(context)
-    print(blockchain,wallet_address,wallet_address)
+    print(blockchain, wallet_address, wallet_address)
     # Check if the wallet address is in the correct format for the specified blockchain
     if blockchain == 'eth':
         if not re.match(r'^0x[a-fA-F0-9]{40}$', wallet_address):
@@ -244,7 +243,7 @@ def remove(update, context):
     blockchain = context.args[0].lower()
     wallet_address = context.args[1]
     name_of_wallet = context.args[2]
-    remove_wallet(wallet_address, blockchain,name_of_wallet)
+    remove_wallet(wallet_address, blockchain, name_of_wallet)
     message = f'Removed {wallet_address} from the list of watched {blockchain.upper()} wallets.'
     context.bot.send_message(chat_id=update.message.chat_id, text=message)
 
@@ -280,11 +279,7 @@ def list_wallets(update, context):
         context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
 
 
-
-# Set up the Telegram bot
-from telegram.ext import Updater, CommandHandler
-
-updater = Updater(token='5343231561:AAGB0nKpggD61U7t83sNgW_a0baKCQk2Deo', use_context=True)
+updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 
 # Define the command handlers
