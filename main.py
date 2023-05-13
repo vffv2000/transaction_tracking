@@ -8,11 +8,11 @@ from telegram.ext import Updater, CommandHandler
 
 
 # Update the following variables with your own Etherscan and BscScan API keys and Telegram bot token
-ETHERSCAN_API_KEY = ''
-BSCSCAN_API_KEY = ''
-TELEGRAM_BOT_TOKEN = ''
-TELEGRAM_CHAT_IDs = ['']
-TELEGRAM_CHAT_ID_ADMIN = ''
+ETHERSCAN_API_KEY = 'CKNNT8S3WW8G5IZ3KK1VEHVSAPMRHMJQ4B'
+BSCSCAN_API_KEY = 'SZSR36ZQ18HFBBJVW43DCZF22XKUW5SU2N'
+TELEGRAM_BOT_TOKEN = '5343231561:AAGB0nKpggD61U7t83sNgW_a0baKCQk2Deo'
+TELEGRAM_CHAT_IDs = ['556907227']
+TELEGRAM_CHAT_ID_ADMIN = '556907227'
 
 
 # Define some helper functions
@@ -44,7 +44,6 @@ def send_telegram_notification(message, value, p_or_m, usd_value, tx_hash, block
     else:
         raise ValueError('Invalid blockchain specified')
     for i in range(len(TELEGRAM_CHAT_IDs)):
-
 
         url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
         payload = {'chat_id': f'{TELEGRAM_CHAT_IDs[i]}',
@@ -96,12 +95,14 @@ def monitor_wallets():
 
                     if tx_hash not in latest_tx_hashes and tx_time > last_run_time:
                         tm = tx['timeStamp']
+                        value = float(tx['value']) / 10 ** 18  # Convert from wei to ETH or BNB
                         date_time = datetime.datetime.fromtimestamp(int(tm)+7200)
                         date_time_str = date_time.strftime('%Y-%m-%d %H:%M:%S')
-                        if tx['to'].lower() == wallet_address.lower():
-                            value = float(tx['value']) / 10 ** 18  # Convert from wei to ETH or BNB
+                        if tx['to'].lower() == wallet_address.lower() and value > 0.001:
+
                             usd_value = value * (
                                 eth_usd_price if blockchain == 'eth' else bnb_usd_price)  # Calculate value in USD
+
                             message = f'🚨 <i>BUY transaction detected on:</i>\n'
                             message += f'  - <b>Name of the wallet:</b> {name_of_wallet}\n'
                             message += f'  - <b>Time:</b> {date_time_str}\n'
@@ -113,10 +114,9 @@ def monitor_wallets():
                                     message += f'  - from: <b>{contract_name}</b>\n'
                             except:
                                 pass
-                            p_or_m="+"
+                            p_or_m = "-"
                             send_telegram_notification(message, value, p_or_m, usd_value, tx['hash'], blockchain)
-                        elif tx['from'].lower() == wallet_address.lower():
-                            value = float(tx['value']) / 10 ** 18  # Convert from wei to ETH or BNB
+                        elif tx['from'].lower() == wallet_address.lower() and value > 0.001:
                             usd_value = value * (
                                 eth_usd_price if blockchain == 'eth' else bnb_usd_price)  # Calculate value in USD
                             message = f'🚨 <i>SELL transaction detected on:</i>\n'
@@ -130,7 +130,7 @@ def monitor_wallets():
                                     message += f'  - from: <b>{contract_name}</b>\n'
                             except:
                                 print('ni')
-                            p_or_m="-"
+                            p_or_m = "+"
                             send_telegram_notification(message, value, p_or_m, usd_value, tx['hash'], blockchain)
 
                         latest_tx_hashes[tx_hash] = int(tx['blockNumber'])
@@ -294,6 +294,7 @@ def addchat(update, context):
     TELEGRAM_CHAT_IDs.append(update.message.chat_id)
     context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
 
+
 def removechat(update, context):
     user_id = update.effective_user.id
     if user_id != int(TELEGRAM_CHAT_ID_ADMIN):
@@ -308,6 +309,7 @@ def removechat(update, context):
         message = f'Chat {chat_id} not found in the list.'
     context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
 
+
 updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 
@@ -316,8 +318,8 @@ start_handler = CommandHandler('start', start)
 add_handler = CommandHandler('add', add)
 remove_handler = CommandHandler('remove', remove)
 list_handler = CommandHandler('list', list_wallets)
-addchat_handler=CommandHandler('addchat', addchat)
-removechat_handler=CommandHandler('removechat', removechat)
+addchat_handler = CommandHandler('addchat', addchat)
+removechat_handler = CommandHandler('removechat', removechat)
 
 # Add the command handlers to the dispatcher
 dispatcher.add_handler(start_handler)
