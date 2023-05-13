@@ -5,14 +5,14 @@ import time
 import os.path
 import re
 from telegram.ext import Updater, CommandHandler
-from web3 import Web3
 
 
 # Update the following variables with your own Etherscan and BscScan API keys and Telegram bot token
-ETHERSCAN_API_KEY = 'CKNNT8S3WW8G5IZ3KK1VEHVSAPMRHMJQ4B'
-BSCSCAN_API_KEY = 'SZSR36ZQ18HFBBJVW43DCZF22XKUW5SU2N'
-TELEGRAM_BOT_TOKEN = '5870213133:AAHQhk78zspNm-vEoS3eklP77gG97mior8s'
-TELEGRAM_CHAT_ID = '1742440393'
+ETHERSCAN_API_KEY = ''
+BSCSCAN_API_KEY = ''
+TELEGRAM_BOT_TOKEN = ''
+TELEGRAM_CHAT_IDs = ['']
+TELEGRAM_CHAT_ID_ADMIN = ''
 
 
 # Define some helper functions
@@ -36,21 +36,23 @@ def get_wallet_transactions(wallet_address, blockchain):
     return result
 
 
-def send_telegram_notification(message, value, usd_value, tx_hash, blockchain):
+def send_telegram_notification(message, value, p_or_m, usd_value, tx_hash, blockchain):
     if blockchain == 'eth':
         etherscan_link = f'<a href="https://etherscan.io/tx/{tx_hash}">Etherscan</a>'
     elif blockchain == 'bnb':
         etherscan_link = f'<a href="https://bscscan.com/tx/{tx_hash}">BscScan</a>'
     else:
         raise ValueError('Invalid blockchain specified')
+    for i in range(len(TELEGRAM_CHAT_IDs)):
 
-    url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
-    payload = {'chat_id': f'{TELEGRAM_CHAT_ID}',
-               'text': f'{message}: {etherscan_link}\nValue: {value:.6f} {blockchain.upper()} (${usd_value:.2f})',
-               'parse_mode': 'HTML'}
-    response = requests.post(url, data=payload)
-    print(
-        f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram notification sent with message: {message}, value: {value} {blockchain.upper()} (${usd_value:.2f})")
+
+        url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
+        payload = {'chat_id': f'{TELEGRAM_CHAT_IDs[i]}',
+                   'text': f'{message}: {etherscan_link}\nValue: {p_or_m}{value:.6f} {blockchain.upper()} (${usd_value:.2f})',
+                   'parse_mode': 'HTML'}
+        response = requests.post(url, data=payload)
+        print(
+            f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram notification sent with message: {message}, value: {p_or_m}{value} {blockchain.upper()} (${usd_value:.2f})")
     return response
 
 
@@ -89,56 +91,47 @@ def monitor_wallets():
                 blockchain, wallet_address, name_of_wallet = wallet.split(':')
                 transactions = get_wallet_transactions(wallet_address, blockchain)
                 for tx in transactions:
-
                     tx_hash = tx['hash']
                     tx_time = int(tx['timeStamp'])
 
                     if tx_hash not in latest_tx_hashes and tx_time > last_run_time:
                         tm = tx['timeStamp']
-                        date_time = datetime.datetime.fromtimestamp(int(tm))
+                        date_time = datetime.datetime.fromtimestamp(int(tm)+7200)
                         date_time_str = date_time.strftime('%Y-%m-%d %H:%M:%S')
                         if tx['to'].lower() == wallet_address.lower():
                             value = float(tx['value']) / 10 ** 18  # Convert from wei to ETH or BNB
                             usd_value = value * (
                                 eth_usd_price if blockchain == 'eth' else bnb_usd_price)  # Calculate value in USD
-                            message = f'🚨 <i>Incoming transaction detected on:</i>\n'
-                            message += f'  - <b>Wallet address:</b> {wallet_address}\n'
+                            message = f'🚨 <i>BUY transaction detected on:</i>\n'
                             message += f'  - <b>Name of the wallet:</b> {name_of_wallet}\n'
                             message += f'  - <b>Time:</b> {date_time_str}\n'
                             try:
                                 contract_address = tx['from']
                                 r = requests.get((f'https://api.etherscan.io/api?module=contract&action=getsourcecode&address={contract_address}&apikey={ETHERSCAN_API_KEY}'))
                                 contract_name = r.json()['result'][0]['ContractName']
-                                message += f'  - from: <b>{contract_name}</b>\n'
-                                if contract_name == '':
-                                    pass
+                                if contract_name != '':
+                                    message += f'  - from: <b>{contract_name}</b>\n'
                             except:
                                 pass
-
-                            send_telegram_notification(message, value, usd_value, tx['hash'], blockchain)
-
+                            p_or_m="+"
+                            send_telegram_notification(message, value, p_or_m, usd_value, tx['hash'], blockchain)
                         elif tx['from'].lower() == wallet_address.lower():
                             value = float(tx['value']) / 10 ** 18  # Convert from wei to ETH or BNB
                             usd_value = value * (
                                 eth_usd_price if blockchain == 'eth' else bnb_usd_price)  # Calculate value in USD
-                            message = f'🚨 <i>Outgoing transaction detected on:</i>\n'
-                            message += f'  - Wallet address: <b>{wallet_address}</b>\n'
+                            message = f'🚨 <i>SELL transaction detected on:</i>\n'
                             message += f'  - Name of the wallet: <b>{name_of_wallet}</b>\n'
                             message += f'  - <b>Time:</b> {date_time_str}\n'
-
                             try:
                                 contract_address = tx['to']
-                                r = requests.get((f'https://api.etherscan.io/api?module=contract&action=getsourcecode&address={contract_address}&apikey=2R47Y5FQ1XH9GGN4ZXP62A5KGF1UWZT7EV'))
-                                # Получение имени контракта
+                                r = requests.get((f'https://api.etherscan.io/api?module=contract&action=getsourcecode&address={contract_address}&apikey={ETHERSCAN_API_KEY}'))
                                 contract_name = r.json()['result'][0]['ContractName']
                                 if contract_name != '':
                                     message += f'  - from: <b>{contract_name}</b>\n'
-                                else:
-                                    message += f'  - from : <b>{contract_address}</b>\n'
                             except:
                                 print('ni')
-
-                            send_telegram_notification(message, value, usd_value, tx['hash'], blockchain)
+                            p_or_m="-"
+                            send_telegram_notification(message, value, p_or_m, usd_value, tx['hash'], blockchain)
 
                         latest_tx_hashes[tx_hash] = int(tx['blockNumber'])
 
@@ -198,13 +191,18 @@ def start(update, context):
     To list all wallets being monitored for all blockchains, use the command:
     /list
 
-    If you find this bot useful, please give it a ⭐
-    my telegram - @vffv2000️
     """
+
+
     context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
 
 
 def add(update, context):
+    user_id = update.effective_user.id
+    if user_id != int(TELEGRAM_CHAT_ID_ADMIN):
+        message = "You do not have permission to run this command."
+        context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
+        return
     if len(context.args) < 2:
         context.bot.send_message(chat_id=update.message.chat_id,
                                  text="Please provide a blockchain and wallet address to add and name of the wallet  Example: /add ETH 0x123456789abcdef MyETHWallet")
@@ -236,6 +234,11 @@ def add(update, context):
 
 
 def remove(update, context):
+    user_id = update.effective_user.id
+    if user_id != int(TELEGRAM_CHAT_ID_ADMIN):
+        message = "You do not have permission to run this command."
+        context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
+        return
     if len(context.args) < 2:
         context.bot.send_message(chat_id=update.message.chat_id,
                                  text="Please provide a blockchain and wallet address to remove.\nExample: /remove ETH 0x123456789abcdef MyETHWallet")
@@ -249,6 +252,7 @@ def remove(update, context):
 
 
 def list_wallets(update, context):
+
     with open("watched_wallets.txt", "r") as f:
         wallets = [line.strip() for line in f.readlines()]
     if wallets:
@@ -279,6 +283,31 @@ def list_wallets(update, context):
         context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
 
 
+def addchat(update, context):
+    user_id = update.effective_user.id
+    if user_id != int(TELEGRAM_CHAT_ID_ADMIN):
+        message = "You do not have permission to run this command."
+        context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
+        return
+
+    message = f'chat added to the list {update.message.chat_id}'
+    TELEGRAM_CHAT_IDs.append(update.message.chat_id)
+    context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
+
+def removechat(update, context):
+    user_id = update.effective_user.id
+    if user_id != int(TELEGRAM_CHAT_ID_ADMIN):
+        message = "You do not have permission to run this command."
+        context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
+        return
+    chat_id = update.message.chat_id
+    if chat_id in TELEGRAM_CHAT_IDs:
+        TELEGRAM_CHAT_IDs.remove(chat_id)
+        message = f'Chat {chat_id} removed from the list.'
+    else:
+        message = f'Chat {chat_id} not found in the list.'
+    context.bot.send_message(chat_id=update.message.chat_id, text=message, parse_mode='Markdown')
+
 updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 
@@ -287,12 +316,16 @@ start_handler = CommandHandler('start', start)
 add_handler = CommandHandler('add', add)
 remove_handler = CommandHandler('remove', remove)
 list_handler = CommandHandler('list', list_wallets)
+addchat_handler=CommandHandler('addchat', addchat)
+removechat_handler=CommandHandler('removechat', removechat)
 
 # Add the command handlers to the dispatcher
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(add_handler)
 dispatcher.add_handler(remove_handler)
 dispatcher.add_handler(list_handler)
+dispatcher.add_handler(addchat_handler)
+dispatcher.add_handler(removechat_handler)
 
 updater.start_polling()
 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram bot started.")
