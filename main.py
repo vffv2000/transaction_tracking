@@ -8,11 +8,11 @@ from telegram.ext import Updater, CommandHandler
 
 
 # Update the following variables with your own Etherscan and BscScan API keys and Telegram bot token
-ETHERSCAN_API_KEY = 'CKNNT8S3WW8G5IZ3KK1VEHVSAPMRHMJQ4B'
-BSCSCAN_API_KEY = 'SZSR36ZQ18HFBBJVW43DCZF22XKUW5SU2N'
-TELEGRAM_BOT_TOKEN = '5343231561:AAGB0nKpggD61U7t83sNgW_a0baKCQk2Deo'
-TELEGRAM_CHAT_IDs = ['556907227']
-TELEGRAM_CHAT_ID_ADMIN = '556907227'
+ETHERSCAN_API_KEY = ''
+BSCSCAN_API_KEY = ''
+TELEGRAM_BOT_TOKEN = ''
+TELEGRAM_CHAT_IDs = ['']
+TELEGRAM_CHAT_ID_ADMIN = ''
 
 
 # Define some helper functions
